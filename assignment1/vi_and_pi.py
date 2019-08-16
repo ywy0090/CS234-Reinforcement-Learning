@@ -33,7 +33,7 @@ the parameters P, nS, nA, gamma are defined as follows:
 """
 
 def policy_evaluation(P, nS, nA, policy, gamma=0.9, tol=1e-3):
-	"""Evaluate the value function from a given policy.
+    """Evaluate the value function from a given policy.
 
 	Parameters
 	----------
@@ -49,20 +49,34 @@ def policy_evaluation(P, nS, nA, policy, gamma=0.9, tol=1e-3):
 	value_function: np.ndarray[nS]
 		The value function of the given policy, where value_function[s] is
 		the value of state s
-	"""
-
-	value_function = np.zeros(nS)
-
-	############################
+    """
+    value_function = np.zeros(nS)
+    prev_value_function = np.ones(nS)
+    ############################
 	# YOUR IMPLEMENTATION HERE #
-
-
-	############################
-	return value_function
+    policy_reward = np.zeros(nS)
+    policy_prob = np.zeros((nS, nS))
+    for s in range(nS):
+            p_a = policy[s]
+            tmp = P[s][p_a]
+            for next_r in tmp:
+                (probability, nextstate, reward, terminal) = next_r
+                policy_reward[s] += reward
+    while max(abs((value_function - prev_value_function))) > tol:
+        prev_value_function = value_function.copy()
+        for s in range(nS):
+            tmp = P[s][policy[s]]
+            next_s_sum = 0
+            for next_s in tmp:
+                (probability, nextstate, reward, terminal) = next_s
+                next_s_sum += probability*prev_value_function[nextstate]
+            value_function[s] = policy_reward[s] + gamma*next_s_sum
+    ############################
+    return value_function
 
 
 def policy_improvement(P, nS, nA, value_from_policy, policy, gamma=0.9):
-	"""Given the value function from policy improve the policy.
+    """Given the value function from policy improve the policy.
 
 	Parameters
 	----------
@@ -80,19 +94,30 @@ def policy_improvement(P, nS, nA, value_from_policy, policy, gamma=0.9):
 		in that state according to the environment dynamics and the
 		given value function.
 	"""
-
-	new_policy = np.zeros(nS, dtype='int')
-
-	############################
+    new_policy = np.zeros(nS, dtype='int')
+    ############################
 	# YOUR IMPLEMENTATION HERE #
-
-
-	############################
-	return new_policy
+    for s in range(nS):
+        max_value = -1
+        tmp_value = 0
+        for a in range(nA):
+            tmp = P[s][a]
+            next_s_value =0
+            tmp_state_reward = 0
+            for next_s in tmp:
+                probability, nextstate, reward, terminal = next_s
+                next_s_value += probability*value_from_policy[nextstate]
+                tmp_state_reward += reward
+            tmp_value = tmp_state_reward + gamma*next_s_value
+            if tmp_value > max_value:
+                new_policy[s] = a
+                max_value = tmp_value
+    ############################
+    return new_policy
 
 
 def policy_iteration(P, nS, nA, gamma=0.9, tol=10e-3):
-	"""Runs policy iteration.
+    """Runs policy iteration.
 
 	You should call the policy_evaluation() and policy_improvement() methods to
 	implement this method.
@@ -107,20 +132,23 @@ def policy_iteration(P, nS, nA, gamma=0.9, tol=10e-3):
 	----------
 	value_function: np.ndarray[nS]
 	policy: np.ndarray[nS]
-	"""
-
-	value_function = np.zeros(nS)
-	policy = np.zeros(nS, dtype=int)
-
-	############################
+    """
+    value_function = np.zeros(nS)
+    policy = np.zeros(nS, dtype=int)
+    ############################
 	# YOUR IMPLEMENTATION HERE #
-
-
-	############################
-	return value_function, policy
+    while True:
+        value_function = policy_evaluation(P, nS, nA, policy)
+        improved_policy = policy_improvement(P, nS, nA, value_function, policy)
+        if np.all(improved_policy == policy):
+            break
+        else:
+            policy = improved_policy
+    ############################
+    return value_function, policy
 
 def value_iteration(P, nS, nA, gamma=0.9, tol=1e-3):
-	"""
+    """
 	Learn value function and policy by using value iteration method for a given
 	gamma and environment.
 
@@ -136,15 +164,37 @@ def value_iteration(P, nS, nA, gamma=0.9, tol=1e-3):
 	value_function: np.ndarray[nS]
 	policy: np.ndarray[nS]
 	"""
-
-	value_function = np.zeros(nS)
-	policy = np.zeros(nS, dtype=int)
-	############################
-	# YOUR IMPLEMENTATION HERE #
-
-
-	############################
-	return value_function, policy
+    value_function = np.zeros(nS)
+    policy = np.zeros(nS, dtype=int)
+    ############################
+    # YOUR IMPLEMENTATION HERE #
+    prev_value_function = np.ones(nS)
+    while max(abs((value_function - prev_value_function))) > tol:
+        prev_value_function = value_function.copy()
+        for s in range(nS):
+            max_value = -1
+            for a in range(nA):
+                tmp = P[s][a]
+                tmp_value = 0
+                for next_s in tmp:
+                    (probability, nextstate, reward, terminal) = next_s
+                    tmp_value += reward+ gamma*probability*prev_value_function[nextstate]
+                if tmp_value>max_value:
+                    max_value = tmp_value
+                    value_function[s] = tmp_value
+    for s in range(nS):
+        max_value = -1
+        for a in range(nA):
+            tmp = P[s][a]
+            tmp_value = 0
+            for next_s in tmp:
+                probability, nextstate, reward, terminal = next_s
+                tmp_value += reward + gamma*probability*value_function[nextstate]
+            if tmp_value > max_value:
+                policy[s] = a
+                max_value = tmp_value
+    ############################
+    return value_function, policy
 
 def render_single(env, policy, max_steps=100):
   """
@@ -183,8 +233,8 @@ def render_single(env, policy, max_steps=100):
 if __name__ == "__main__":
 
 	# comment/uncomment these lines to switch between deterministic/stochastic environments
-	env = gym.make("Deterministic-4x4-FrozenLake-v0")
-	# env = gym.make("Stochastic-4x4-FrozenLake-v0")
+	# env = gym.make("Deterministic-4x4-FrozenLake-v0")
+	env = gym.make("Stochastic-4x4-FrozenLake-v0")
 
 	print("\n" + "-"*25 + "\nBeginning Policy Iteration\n" + "-"*25)
 
