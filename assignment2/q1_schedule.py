@@ -33,9 +33,9 @@ class LinearSchedule(object):
         """
         ##############################################################
         ################ YOUR CODE HERE - 3-4 lines ################## 
-
-        pass
-
+        if t<=self.nsteps and t>=0:
+            unit_chg = (self.eps_end - self.eps_begin)/self.nsteps
+            self.epsilon = self.eps_begin + t*unit_chg
         ##############################################################
         ######################## END YOUR CODE ############## ########
 
@@ -78,8 +78,11 @@ class LinearExploration(LinearSchedule):
         """
         ##############################################################
         ################ YOUR CODE HERE - 4-5 lines ##################
-
-        pass
+        if np.random.rand() < self.epsilon:
+            res_action = self.env.action_space.sample()
+        else:
+            res_action = best_action
+        return res_action
 
         ##############################################################
         ######################## END YOUR CODE #######################
@@ -110,7 +113,7 @@ def test2():
 
 def test3():
     env = EnvTest((5, 5, 1))
-    exp_strat = LinearExploration(env, 1, 0.5, 10)
+    exp_strat = LinearExploration(env, 0.5, 1, 10)
     exp_strat.update(20)
     assert exp_strat.epsilon == 0.5, "Test 3 failed"
     print("Test3: ok")
