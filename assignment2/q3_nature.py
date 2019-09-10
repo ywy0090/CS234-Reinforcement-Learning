@@ -53,9 +53,14 @@ class NatureQN(Linear):
 
         """
         ##############################################################
-        ################ YOUR CODE HERE - 10-15 lines ################ 
-
-        pass
+        ################ YOUR CODE HERE - 10-15 lines ################
+        with tf.variable_scope(scope, reuse=reuse) as _:
+            con2d_state = layers.conv2d(state, num_outputs=32, kernel_size=8, stride=4, activation_fn=tf.nn.relu)
+            con2d_state = layers.conv2d(con2d_state, num_outputs=64, kernel_size=4, stride=2, activation_fn=tf.nn.relu)
+            con2d_state = layers.conv2d(con2d_state, num_outputs=64, kernel_size=3, stride=1, activation_fn=tf.nn.relu)
+            flat_state = layers.flatten(con2d_state, scope=scope)
+            dense_state = layers.fully_connected(flat_state, 512)
+            out = layers.fully_connected(dense_state, num_actions)
 
         ##############################################################
         ######################## END YOUR CODE #######################
