@@ -49,9 +49,29 @@ class Linear(DQN):
         """
         ##############################################################
         ################YOUR CODE HERE (6-15 lines) ##################
-
-        pass
-
+        self.s = tf.placeholder(tf.int8,
+                                shape=[None, state_shape[0], state_shape[1],
+                                       self.config.state_history*state_shape[2]],
+                                name="states"
+                                )
+        self.a = tf.placeholder(tf.int32,
+                                shape=[None],
+                                name="action")
+        self.r = tf.placeholder(tf.float32,
+                                shape=[None],
+                                name="reward")
+        self.sp = tf.placeholder(tf.int8,
+                                 shape=[None,
+                                        state_shape[0],
+                                        state_shape[1],
+                                        self.config.state_history*state_shape[2]],
+                                 name="next_states")
+        self.done_mask = tf.placeholder(tf.bool,
+                                   shape=[None],
+                                   name="done")
+        self.lr = tf.placeholder(tf.float32,
+                                 shape=(),
+                                 name="learning_rate")
         ##############################################################
         ######################## END YOUR CODE #######################
 
@@ -62,7 +82,7 @@ class Linear(DQN):
 
         Args:
             state: (tf tensor) 
-                shape = (batch_size, img height, img width, nchannels x config.state_history)
+            shape = (batch_size, img height, img width, nchannels x config.state_history)
             scope: (string) scope name, that specifies if target network or not
             reuse: (bool) reuse of variables in the scope
 
@@ -86,9 +106,9 @@ class Linear(DQN):
             - Make sure to also specify the scope and reuse
         """
         ##############################################################
-        ################ YOUR CODE HERE - 2-3 lines ################## 
-        
-        pass
+        ################ YOUR CODE HERE - 2-3 lines ##################
+        flat_state = tf.contrib.layers.flatten(state, scope=scope)
+        out = layers.fully_connected(flat_state, num_actions,  reuse=reuse, scope=scope)
 
         ##############################################################
         ######################## END YOUR CODE #######################
@@ -131,9 +151,9 @@ class Linear(DQN):
         """
         ##############################################################
         ################### YOUR CODE HERE - 5-10 lines #############
-        
-        pass
-
+        q_score_var = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, q_scope)
+        target_q_var = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, target_q_scope)
+        self.update_target_op = tf.group(*[tf.assign(t,q) for t, q in zip(target_q_var, q_score_var)])
         ##############################################################
         ######################## END YOUR CODE #######################
 
@@ -171,8 +191,12 @@ class Linear(DQN):
         ##############################################################
         ##################### YOUR CODE HERE - 4-5 lines #############
 
-        pass
-
+        temp_q_samp = self.r + self.config.gamma*tf.reduce_max(target_q, 1)
+        q_samp = tf.where(self.done_mask, self.r, temp_q_samp)
+        action_one_hot = tf.one_hot(self.a, num_actions)
+        q_new = tf.reduce_sum(tf.multiply(action_one_hot, q), 1)
+        q_sq_difference = tf.squared_difference(q_samp, q_new)
+        self.loss = tf.reduce_mean(q_sq_difference)
         ##############################################################
         ######################## END YOUR CODE #######################
 
@@ -207,9 +231,15 @@ class Linear(DQN):
         """
         ##############################################################
         #################### YOUR CODE HERE - 8-12 lines #############
-
-        pass
-        
+        optimizer = tf.train.AdamOptimizer(learning_rate=self.lr)
+        scope_variable = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope)
+        grads = optimizer.compute_gradients(self.loss, scope_variable)
+        if self.config.grad_clip:
+            for i,(g,v) in enumerate(grads):
+                if g is not None:
+                    grads[i] = (tf.clip_by_norm(g, self.config.clip_val), v)
+        self.train_op = optimizer.apply_gradients(grads)
+        self.grad_norm = tf.global_norm([item[0] for item in grads])
         ##############################################################
         ######################## END YOUR CODE #######################
     
